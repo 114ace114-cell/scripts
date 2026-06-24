@@ -1,4 +1,4 @@
--- SHA256 Library - Pure Luau - Perfect for loadstring
+-- SHA256 Library - Pure Luau - Fixed & Perfect for loadstring
 local SHA256 = {}
 
 local K = {
@@ -12,22 +12,22 @@ local K = {
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 }
 
-local function rightrotate(x, n)
-    return bit32.rrotate(x, n)
-end
+-- Localize for speed optimization
+local badd = bit32.badd
+local rrotate = bit32.rrotate
 
 local function preprocess(message)
     local len = #message * 8
     local padding = 512 - ((len + 1 + 64) % 512)
     if padding == 512 then padding = 0 end
 
+    -- Using // 8 for Luau compatibility
     local padded = message .. "\x80" .. string.rep("\0", padding // 8) .. string.pack(">I8", len)
     return padded
 end
 
 function SHA256.hash(input)
     local message = type(input) == "string" and input or buffer.tostring(input)
-
     message = preprocess(message)
 
     local h0, h1, h2, h3, h4, h5, h6, h7 = 
@@ -37,38 +37,44 @@ function SHA256.hash(input)
     for i = 1, #message, 64 do
         local w = table.create(64)
 
-        for j = 0, 15 do
-            w[j] = string.unpack(">I4", message, i + j*4)
+        -- Switched to 1-16 loop for proper Luau array speed optimization
+        for j = 1, 16 do
+            w[j] = string.unpack(">I4", message, i + (j - 1) * 4)
         end
 
-        for j = 16, 63 do
-            local s0 = rightrotate(w[j-15], 7) ~ rightrotate(w[j-15], 18) ~ (w[j-15] >> 3)
-            local s1 = rightrotate(w[j-2], 17) ~ rightrotate(w[j-2], 19) ~ (w[j-2] >> 10)
-            w[j] = w[j-16] + s0 + w[j-7] + s1
+        for j = 17, 64 do
+            local s0 = rrotate(w[j-15], 7) ~ rrotate(w[j-15], 18) ~ (w[j-15] >> 3)
+            local s1 = rrotate(w[j-2], 17) ~ rrotate(w[j-2], 19) ~ (w[j-2] >> 10)
+            w[j] = badd(w[j-16], s0, w[j-7], s1) -- Fixed: wrapping addition
         end
 
         local a, b, c, d, e, f, g, h = h0, h1, h2, h3, h4, h5, h6, h7
 
-        for j = 0, 63 do
-            local S1 = rightrotate(e, 6) ~ rightrotate(e, 11) ~ rightrotate(e, 25)
+        for j = 1, 64 do
+            local S1 = rrotate(e, 6) ~ rrotate(e, 11) ~ rrotate(e, 25)
             local ch = (e & f) ~ (~e & g)
-            local temp1 = h + S1 + ch + K[j+1] + w[j]
+            local temp1 = badd(h, S1, ch, K[j], w[j]) -- Fixed: wrapping addition
 
-            local S0 = rightrotate(a, 2) ~ rightrotate(a, 13) ~ rightrotate(a, 22)
+            local S0 = rrotate(a, 2) ~ rrotate(a, 13) ~ rrotate(a, 22)
             local maj = (a & b) ~ (a & c) ~ (b & c)
-            local temp2 = S0 + maj
+            local temp2 = badd(S0, maj) -- Fixed: wrapping addition
 
-            h = g; g = f; f = e; e = d + temp1
-            d = c; c = b; b = a; a = temp1 + temp2
+            h = g; g = f; f = e; e = badd(d, temp1)
+            d = c; c = b; b = a; a = badd(temp1, temp2)
         end
 
-        h0 = h0 + a; h1 = h1 + b; h2 = h2 + c; h3 = h3 + d
-        h4 = h4 + e; h5 = h5 + f; h6 = h6 + g; h7 = h7 + h
+        h0 = badd(h0, a)
+        h1 = badd(h1, b)
+        h2 = badd(h2, c)
+        h3 = badd(h3, d)
+        h4 = badd(h4, e)
+        h5 = badd(h5, f)
+        h6 = badd(h6, g)
+        h7 = badd(h7, h)
     end
 
     return string.format("%08x%08x%08x%08x%08x%08x%08x%08x",
-        h0 & 0xffffffff, h1 & 0xffffffff, h2 & 0xffffffff, h3 & 0xffffffff,
-        h4 & 0xffffffff, h5 & 0xffffffff, h6 & 0xffffffff, h7 & 0xffffffff)
+        h0, h1, h2, h3, h4, h5, h6, h7)
 end
 
 return SHA256
