@@ -8,6 +8,9 @@ local currentUniverseId = tostring(game.GameId)
 
 local cacheString, cacheFunc = "", nil
 
+-- Global tracking variable for the active script instance
+_G.CurrentScriptToken = _G.CurrentScriptToken or 0
+
 function CodeRunner.fetchAndRun()
     local success, response = pcall(request, {
         Url = SERVER_URL,
@@ -18,7 +21,7 @@ function CodeRunner.fetchAndRun()
             gameId = currentUniverseId
         })
     })
-
+    
     if not success then return false end
     
     local decodeSuccess, json = pcall(HttpService.JSONDecode, HttpService, response.Body)
@@ -27,11 +30,17 @@ function CodeRunner.fetchAndRun()
     -- Compile if new, execute from upvalue cache if old
     if json.scriptCode ~= cacheString then
         cacheString = json.scriptCode
+        print("New script detected! Updating token...")
+        
+        -- Increment the token to invalidate any previous running cacheFunc loops
+        _G.CurrentScriptToken = _G.CurrentScriptToken + 1
+        
         cacheFunc = loadstring(json.scriptCode)
     end
 
     if cacheFunc then 
-        pcall(cacheFunc) 
+        -- Pass the token into the function so the script knows its own identity
+        pcall(cacheFunc, _G.CurrentScriptToken) 
         return true
     end
     return false
