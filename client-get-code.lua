@@ -20,7 +20,7 @@ local keepLooping = true
 -- 提供一个关闭当前循环的全局钩子
 _G.StopPriorCodeRunnerLoop = function()
     keepLooping = false
-    print("[Loader] 旧的监听循环已成功关闭。")
+    print("[Loader] StopPriorCodeRunnerLoop stopped")
 end
 
 function CodeRunner.fetchAndRun()
@@ -63,8 +63,6 @@ function CodeRunner.fetchAndRun()
 end
 
 function CodeRunner.startLoop(interval)
-    print("load game", game.GameId)
-    
     task.spawn(function()
         while keepLooping do
             CodeRunner.fetchAndRun()
@@ -73,6 +71,7 @@ function CodeRunner.startLoop(interval)
     end)
 end
 
+print("load game", game.GameId)
 -- 启动轮询，间隔 3 秒
 CodeRunner.startLoop(3)
 
