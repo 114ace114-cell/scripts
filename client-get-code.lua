@@ -45,8 +45,6 @@ function CodeRunner.fetchAndRun()
     -- 【修复核心 1】: 只有当指令/代码发生改变，或者是空命令变有命令时才触发执行
     if json.scriptCode and json.scriptCode ~= "" and json.scriptCode ~= _G.CodeRunnerCacheString then
         _G.CodeRunnerCacheString = json.scriptCode
-        print("New script detected! Updating token...")
-        
         _G.CurrentScriptToken = _G.CurrentScriptToken + 1
         
         local cacheFunc = loadstring(json.scriptCode)
